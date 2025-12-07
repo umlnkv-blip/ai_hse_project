@@ -1,0 +1,248 @@
+Вот промпт, который можно **прямо скопировать и вставить в Replit Agent / Replit AI** при создании нового приложения. Я адаптировала его под Replit (без Bolt) и оставила YandexGPT.
+
+---
+
+````text
+You are Replit Agent. Build a full-stack web app called “NeuroMarketer”.
+
+This is an AI assistant for Russian-speaking marketers. It generates marketing copy for:
+1) Yandex.Direct ads
+2) Email and social media posts
+3) Loyalty program messages (birthday, personal offers, reactivation)
+
+All UI text, labels and messages must be in Russian.
+
+====================================
+TECH STACK AND RUNTIME (REPLIT)
+====================================
+
+- Use Next.js (App Router) with TypeScript and React.
+- Use Tailwind CSS for styling with a clean, minimal layout.
+- Use Replit’s built-in database (e.g. Replit DB or a simple Postgres/SQLite setup) to store generation history.
+- For text generation use YandexGPT via Yandex AI Studio Responses API, accessed through the OpenAI-compatible JavaScript client.
+
+Environment variables (stored in Replit Secrets / .env):
+- YANDEX_CLOUD_API_KEY
+- YANDEX_CLOUD_FOLDER
+
+Create a helper in `lib/yandexClient.ts`:
+
+```ts
+import OpenAI from "openai";
+
+export const yandexClient = new OpenAI({
+  apiKey: process.env.YANDEX_CLOUD_API_KEY!,
+  baseURL: "https://rest-assistant.api.cloud.yandex.net/v1",
+  project: process.env.YANDEX_CLOUD_FOLDER!,
+});
+
+export async function generateTextYandex(prompt: string) {
+  const response = await yandexClient.responses.create({
+    model: `gpt://${process.env.YANDEX_CLOUD_FOLDER}/yandexgpt-lite`,
+    input: prompt,
+    temperature: 0.7,
+    max_output_tokens: 800,
+  });
+
+  // Use the appropriate field from YandexGPT Responses API to get the plain text.
+  const text = (response as any).output_text ?? JSON.stringify(response);
+  return text;
+}
+````
+
+Use this helper in all backend routes instead of OpenAI.
+
+====================================
+APP STRUCTURE
+=============
+
+The app has two main pages:
+
+1. `/` — landing page
+2. `/app` — main workspace with tabs
+
+---
+
+## PAGE `/` (Landing)
+
+* Title: “NeuroMarketer”
+* Subtitle (in Russian): «ИИ-ассистент для маркетологов и малого бизнеса».
+* Short description (1–2 paragraphs) in Russian explaining that the app helps:
+
+  * генерировать объявления для Яндекс.Директ,
+  * готовить тексты для email и соцсетей,
+  * писать сообщения для программ лояльности.
+* One primary button: **«Перейти к сервису»**, which navigates to `/app`.
+
+---
+
+## PAGE `/app` (Workspace)
+
+Use a tabbed interface with four tabs (client-side switching, no full page reload):
+
+1. «Яндекс.Директ»
+2. «Email и соцсети»
+3. «Лояльность»
+4. «История»
+
+Each tab has its own form and results panel.
+
+====================================
+TAB 1: «Яндекс.Директ»
+======================
+
+Left side: form with Russian labels:
+
+* «Продукт или услуга» — textarea
+* «Целевая аудитория» — textarea
+* «Ключевые слова» — textarea
+* «Уникальное торговое предложение (УТП)» — textarea
+* «Тональность» — select: нейтральный, дружеский, экспертный, эмоциональный
+* «Количество вариантов» — number (min 1, max 10, default 5)
+* Small button «Использовать пример», which autofills demo values for presentation.
+
+Right side: results panel
+
+* After submit, show a loading state: «Генерируем объявления…».
+* Then render a list of generated ads. For each variant show:
+
+  * Заголовок
+  * Текст объявления
+  * Button «Скопировать» (copy to clipboard)
+* Handle and display errors in Russian.
+
+Backend route: `POST /api/generate/yadirect`
+
+* Accepts JSON with all form fields.
+* Builds a Russian prompt for YandexGPT, for example:
+
+  * “Ты русскоязычный копирайтер по контекстной рекламе. На основе описания продукта, целевой аудитории, ключевых слов, УТП и тональности создай N реалистичных объявлений для Яндекс.Директ с короткими заголовками и текстами.”
+* Calls `generateTextYandex(prompt)` and parses the result into N separate variants.
+* Saves input and output to the `generations` table.
+* Returns an array of variants to the frontend.
+
+====================================
+TAB 2: «Email и соцсети»
+========================
+
+Left side: form
+
+* «Канал» — select: email, пост в Instagram, сторис, VK, Telegram
+* «Цель» — select: приветствие, промо-акция, реактивация, дайджест, образовательный пост
+* «Портрет клиента» — textarea (подсказка: демография, интересы, боли)
+* «Описание продукта или оффера» — textarea
+* «Тональность» — select: дружеская, экспертная, вдохновляющая, провокационная
+* Button «Использовать пример» to autofill demo data.
+
+Right side: results
+
+* Show 2–3 variants.
+* For each variant display:
+
+  * Основной текст сообщения
+  * Separate line: «Идея для картинки: …»
+  * Button «Скопировать»
+
+Backend route: `POST /api/generate/email-social`
+
+* Accepts JSON from the form.
+* Builds a Russian prompt like:
+
+  * “Ты копирайтер, который пишет тексты для email и соцсетей. На основе канала, цели, портрета клиента, описания продукта и тональности создай 2–3 варианта текста. В конце каждого варианта добавь строку «Идея для картинки: …».”
+* Calls `generateTextYandex`.
+* Saves request and response in `generations`.
+* Returns the variants.
+
+====================================
+TAB 3: «Лояльность»
+===================
+
+Left side: form
+
+* «Тип сценария» — select: поздравление с ДР, персональное предложение, реактивация
+* «Имя клиента» — text
+* «Что клиент покупал / интересы» — textarea
+* «Скидка / предложение» — text
+* «Цель кампании» — textarea
+* Button «Использовать пример».
+
+Right side: results
+
+* Generate 1–2 messages.
+* Messages should:
+
+  * Быть на русском языке.
+  * Использовать плейсхолдеры вида `{{Имя}}` при обращении к клиенту.
+  * Быть пригодными для email или мессенджеров.
+* Для каждого варианта — текст + кнопка «Скопировать».
+
+Backend route: `POST /api/generate/loyalty`
+
+* Accepts form JSON.
+* Builds a prompt for YandexGPT, e.g.:
+
+  * “Ты маркетолог по CRM и программам лояльности. На основе сценария, имени клиента, его интересов и предыдущих покупок, а также предложения и цели кампании составь 1–2 варианта персональных сообщений. Используй плейсхолдеры {{Имя}}. Применяй принципы AIDA и PAS, но текст должен звучать естественно.”
+* Calls `generateTextYandex`.
+* Saves to `generations`.
+* Returns the variants.
+
+====================================
+TAB 4: «История»
+================
+
+Use Replit’s built-in database to store history.
+
+Create a `generations` table or collection with fields:
+
+* id — unique id
+* module — text (“yadirect”, “email_social”, “loyalty”)
+* input_json — text (stringified JSON of request)
+* output_text — text (full generated text or joined variants)
+* is_favorite — boolean, default false
+* created_at — timestamp
+
+UI requirements for «История»:
+
+* Display a table with columns:
+
+  * Дата и время
+  * Модуль
+  * Краткое описание входных данных (обрезанный input_json)
+  * Первые ~200 символов результата
+* Add:
+
+  * Filter by module (dropdown).
+  * Text search by keyword.
+  * Star icon «★» to toggle `is_favorite`.
+* Clicking any row opens a modal with full `output_text`.
+
+====================================
+UX AND VALIDATION
+=================
+
+* All text in the UI and validation messages must be in Russian.
+* Add basic required-field validation and disable submit buttons while a request is in progress.
+* Make layout responsive enough for laptop and tablet.
+* Provide nice empty states when there is no history yet.
+
+====================================
+README
+======
+
+Create a `README.md` in the project root (in Russian) with:
+
+* Краткое описание приложения и его модулей.
+* Используемый стек (Next.js, Tailwind, Replit DB, YandexGPT).
+* Инструкции, как запустить проект в Replit.
+* Инструкции по настройке переменных окружения:
+
+  * YANDEX_CLOUD_API_KEY
+  * YANDEX_CLOUD_FOLDER
+
+If some parts cannot be implemented automatically, add clear TODO comments in the code where manual finishing is needed.
+
+```
+
+Если хочешь, дальше могу сделать для тебя **короткий второй промпт** типа:  
+«Теперь добавь реальные примеры данных для кнопки “Использовать пример” на каждой вкладке» — чтобы Replit дополнил уже созданный проект.
+```
