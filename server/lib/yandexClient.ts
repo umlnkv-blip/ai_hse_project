@@ -1,31 +1,61 @@
-import OpenAI from "openai";
-
-const yandexClient = new OpenAI({
-  apiKey: process.env.YANDEX_CLOUD_API_KEY || "",
-  baseURL: "https://llm.api.cloud.yandex.net/foundationModels/v1",
-});
+interface YandexGPTResponse {
+  result: {
+    alternatives: Array<{
+      message: {
+        role: string;
+        text: string;
+      };
+      status: string;
+    }>;
+    usage: {
+      inputTextTokens: string;
+      completionTokens: string;
+      totalTokens: string;
+    };
+    modelVersion: string;
+  };
+}
 
 export async function generateTextYandex(prompt: string): Promise<string> {
+  const apiKey = process.env.YANDEX_CLOUD_API_KEY || "";
   const folderId = process.env.YANDEX_CLOUD_FOLDER || "";
   
-  if (!process.env.YANDEX_CLOUD_API_KEY || !folderId) {
+  if (!apiKey || !folderId) {
     throw new Error("YandexGPT API credentials not configured. Please set YANDEX_CLOUD_API_KEY and YANDEX_CLOUD_FOLDER.");
   }
 
   try {
-    const response = await yandexClient.chat.completions.create({
-      model: `gpt://${folderId}/yandexgpt-lite`,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
+    const response = await fetch("https://llm.api.cloud.yandex.net/foundationModels/v1/completion", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Api-Key ${apiKey}`,
+        "x-folder-id": folderId,
+      },
+      body: JSON.stringify({
+        modelUri: `gpt://${folderId}/yandexgpt-lite/latest`,
+        completionOptions: {
+          stream: false,
+          temperature: 0.7,
+          maxTokens: 2000,
         },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
+        messages: [
+          {
+            role: "user",
+            text: prompt,
+          },
+        ],
+      }),
     });
 
-    const text = response.choices[0]?.message?.content || "";
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("YandexGPT API error response:", errorText);
+      throw new Error(`YandexGPT API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as YandexGPTResponse;
+    const text = data.result?.alternatives?.[0]?.message?.text || "";
     return text;
   } catch (error: any) {
     console.error("YandexGPT API error:", error);
