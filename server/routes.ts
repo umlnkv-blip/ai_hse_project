@@ -1,16 +1,209 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { 
+  yaDirectRequestSchema, 
+  emailSocialRequestSchema, 
+  loyaltyRequestSchema 
+} from "@shared/schema";
+import {
+  generateTextYandex,
+  buildYaDirectPrompt,
+  buildEmailSocialPrompt,
+  buildLoyaltyPrompt,
+  parseYaDirectResponse,
+  parseEmailSocialResponse,
+  parseLoyaltyResponse,
+} from "./lib/yandexClient";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  app.post("/api/generate/yadirect", async (req, res) => {
+    try {
+      const parsed = yaDirectRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Ошибка валидации", 
+          details: parsed.error.errors 
+        });
+      }
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+      const prompt = buildYaDirectPrompt(parsed.data);
+      const response = await generateTextYandex(prompt);
+      const results = parseYaDirectResponse(response);
+
+      if (results.length === 0) {
+        const fallbackResults = [{
+          title: "Результат генерации",
+          text: response.trim()
+        }];
+        
+        await storage.createGeneration({
+          module: "yadirect",
+          inputJson: JSON.stringify(parsed.data),
+          outputText: response,
+          isFavorite: false,
+        });
+
+        return res.json({ results: fallbackResults, raw: response });
+      }
+
+      await storage.createGeneration({
+        module: "yadirect",
+        inputJson: JSON.stringify(parsed.data),
+        outputText: results.map(r => `${r.title}\n${r.text}`).join("\n\n"),
+        isFavorite: false,
+      });
+
+      res.json({ results });
+    } catch (error: any) {
+      console.error("YaDirect generation error:", error);
+      res.status(500).json({ 
+        error: error.message || "Ошибка генерации. Попробуйте позже." 
+      });
+    }
+  });
+
+  app.post("/api/generate/email-social", async (req, res) => {
+    try {
+      const parsed = emailSocialRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Ошибка валидации", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const prompt = buildEmailSocialPrompt(parsed.data);
+      const response = await generateTextYandex(prompt);
+      const results = parseEmailSocialResponse(response);
+
+      if (results.length === 0) {
+        const fallbackResults = [{
+          text: response.trim(),
+          imageIdea: ""
+        }];
+        
+        await storage.createGeneration({
+          module: "email_social",
+          inputJson: JSON.stringify(parsed.data),
+          outputText: response,
+          isFavorite: false,
+        });
+
+        return res.json({ results: fallbackResults, raw: response });
+      }
+
+      await storage.createGeneration({
+        module: "email_social",
+        inputJson: JSON.stringify(parsed.data),
+        outputText: results.map(r => `${r.text}\n\nИдея для картинки: ${r.imageIdea}`).join("\n\n---\n\n"),
+        isFavorite: false,
+      });
+
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Email/Social generation error:", error);
+      res.status(500).json({ 
+        error: error.message || "Ошибка генерации. Попробуйте позже." 
+      });
+    }
+  });
+
+  app.post("/api/generate/loyalty", async (req, res) => {
+    try {
+      const parsed = loyaltyRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Ошибка валидации", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const prompt = buildLoyaltyPrompt(parsed.data);
+      const response = await generateTextYandex(prompt);
+      const results = parseLoyaltyResponse(response);
+
+      if (results.length === 0) {
+        const fallbackResults = [{ text: response.trim() }];
+        
+        await storage.createGeneration({
+          module: "loyalty",
+          inputJson: JSON.stringify(parsed.data),
+          outputText: response,
+          isFavorite: false,
+        });
+
+        return res.json({ results: fallbackResults, raw: response });
+      }
+
+      await storage.createGeneration({
+        module: "loyalty",
+        inputJson: JSON.stringify(parsed.data),
+        outputText: results.map(r => r.text).join("\n\n---\n\n"),
+        isFavorite: false,
+      });
+
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Loyalty generation error:", error);
+      res.status(500).json({ 
+        error: error.message || "Ошибка генерации. Попробуйте позже." 
+      });
+    }
+  });
+
+  app.get("/api/history", async (req, res) => {
+    try {
+      const { module, search, favoritesOnly } = req.query;
+      
+      const generations = await storage.getGenerations({
+        module: module as string | undefined,
+        search: search as string | undefined,
+        favoritesOnly: favoritesOnly === "true",
+      });
+
+      res.json({ generations });
+    } catch (error: any) {
+      console.error("History fetch error:", error);
+      res.status(500).json({ error: "Ошибка загрузки истории" });
+    }
+  });
+
+  app.patch("/api/history/:id/favorite", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await storage.toggleFavorite(id);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Запись не найдена" });
+      }
+
+      res.json({ generation: updated });
+    } catch (error: any) {
+      console.error("Toggle favorite error:", error);
+      res.status(500).json({ error: "Ошибка обновления" });
+    }
+  });
+
+  app.delete("/api/history/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteGeneration(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Запись не найдена" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete generation error:", error);
+      res.status(500).json({ error: "Ошибка удаления" });
+    }
+  });
 
   return httpServer;
 }
