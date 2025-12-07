@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,9 +7,12 @@ import { Megaphone, Mail, Heart, Clock, Loader2 } from "lucide-react";
 import YaDirectForm, { YaDirectFormData } from "@/components/YaDirectForm";
 import EmailSocialForm, { EmailSocialFormData } from "@/components/EmailSocialForm";
 import LoyaltyForm, { LoyaltyFormData } from "@/components/LoyaltyForm";
-import HistoryTable, { HistoryItem } from "@/components/HistoryTable";
+import HistoryTable from "@/components/HistoryTable";
 import ResultCard from "@/components/ResultCard";
 import EmptyState from "@/components/EmptyState";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Generation } from "@shared/schema";
 
 interface GeneratedResult {
   title?: string;
@@ -16,121 +20,126 @@ interface GeneratedResult {
   imageIdea?: string;
 }
 
+interface GenerateResponse {
+  results: GeneratedResult[];
+  raw?: string;
+}
+
+interface HistoryResponse {
+  generations: Generation[];
+}
+
 export default function Workspace() {
   const [activeTab, setActiveTab] = useState("yadirect");
-  const [isLoading, setIsLoading] = useState(false);
   const [yaDirectResults, setYaDirectResults] = useState<GeneratedResult[]>([]);
   const [emailResults, setEmailResults] = useState<GeneratedResult[]>([]);
   const [loyaltyResults, setLoyaltyResults] = useState<GeneratedResult[]>([]);
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const { toast } = useToast();
 
-  const handleYaDirectSubmit = async (data: YaDirectFormData) => {
-    setIsLoading(true);
-    console.log("YaDirect submit:", data);
-    
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    const mockResults: GeneratedResult[] = [
-      {
-        title: "Стань программистом за 6 месяцев!",
-        text: "Освойте Python с нуля до Junior. Гарантия трудоустройства. Практика на реальных проектах. Поддержка менторов 24/7.",
-      },
-      {
-        title: "IT-профессия с нуля",
-        text: "Курсы программирования для начинающих. Обучение от практикующих экспертов. Диплом государственного образца.",
-      },
-      {
-        title: "Смени профессию на IT",
-        text: "Научим программировать с нуля. 6 месяцев — и вы Junior-разработчик. Помощь в трудоустройстве.",
-      },
-    ];
-    
-    setYaDirectResults(mockResults);
-    
-    const newHistoryItem: HistoryItem = {
-      id: Date.now().toString(),
-      module: "yadirect",
-      inputJson: JSON.stringify(data),
-      outputText: mockResults.map((r) => `${r.title}\n${r.text}`).join("\n\n"),
-      isFavorite: false,
-      createdAt: new Date(),
-    };
-    setHistoryItems((prev) => [newHistoryItem, ...prev]);
-    
-    setIsLoading(false);
+  const { data: historyData, isLoading: isHistoryLoading } = useQuery<HistoryResponse>({
+    queryKey: ["/api/history"],
+  });
+
+  const yaDirectMutation = useMutation({
+    mutationFn: async (data: YaDirectFormData) => {
+      const res = await apiRequest("POST", "/api/generate/yadirect", data);
+      return res.json() as Promise<GenerateResponse>;
+    },
+    onSuccess: (data) => {
+      setYaDirectResults(data.results);
+      queryClient.invalidateQueries({ queryKey: ["/api/history"] });
+      toast({
+        title: "Готово",
+        description: `Создано ${data.results.length} вариантов объявлений`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Ошибка генерации",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const emailMutation = useMutation({
+    mutationFn: async (data: EmailSocialFormData) => {
+      const res = await apiRequest("POST", "/api/generate/email-social", data);
+      return res.json() as Promise<GenerateResponse>;
+    },
+    onSuccess: (data) => {
+      setEmailResults(data.results);
+      queryClient.invalidateQueries({ queryKey: ["/api/history"] });
+      toast({
+        title: "Готово",
+        description: `Создано ${data.results.length} вариантов`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Ошибка генерации",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const loyaltyMutation = useMutation({
+    mutationFn: async (data: LoyaltyFormData) => {
+      const res = await apiRequest("POST", "/api/generate/loyalty", data);
+      return res.json() as Promise<GenerateResponse>;
+    },
+    onSuccess: (data) => {
+      setLoyaltyResults(data.results);
+      queryClient.invalidateQueries({ queryKey: ["/api/history"] });
+      toast({
+        title: "Готово",
+        description: `Создано ${data.results.length} вариантов сообщений`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Ошибка генерации",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/history/${id}/favorite`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/history"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Ошибка",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleYaDirectSubmit = (data: YaDirectFormData) => {
+    yaDirectMutation.mutate(data);
   };
 
-  const handleEmailSubmit = async (data: EmailSocialFormData) => {
-    setIsLoading(true);
-    console.log("Email/Social submit:", data);
-    
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    const mockResults: GeneratedResult[] = [
-      {
-        text: "Привет! Мы соскучились по тебе и подготовили кое-что особенное. Только для тебя — скидка 25% на всю новую коллекцию органической косметики. Сыворотка с витамином C уже ждет тебя!",
-        imageIdea: "Флэтлей с баночками косметики на светлом мраморном фоне, лепестки роз, капли воды",
-      },
-      {
-        text: "Твоя кожа заслуживает лучшего! Новая линейка органической косметики — это забота о себе без компромиссов. Натуральные ингредиенты, видимый результат. Попробуй со скидкой 25%!",
-        imageIdea: "До/после эффект на коже, естественный свет, минималистичный дизайн",
-      },
-    ];
-    
-    setEmailResults(mockResults);
-    
-    const newHistoryItem: HistoryItem = {
-      id: Date.now().toString(),
-      module: "email_social",
-      inputJson: JSON.stringify(data),
-      outputText: mockResults.map((r) => `${r.text}\n\nИдея для картинки: ${r.imageIdea}`).join("\n\n---\n\n"),
-      isFavorite: false,
-      createdAt: new Date(),
-    };
-    setHistoryItems((prev) => [newHistoryItem, ...prev]);
-    
-    setIsLoading(false);
+  const handleEmailSubmit = (data: EmailSocialFormData) => {
+    emailMutation.mutate(data);
   };
 
-  const handleLoyaltySubmit = async (data: LoyaltyFormData) => {
-    setIsLoading(true);
-    console.log("Loyalty submit:", data);
-    
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    const mockResults: GeneratedResult[] = [
-      {
-        text: `Дорогая {{Имя}}, поздравляем вас с Днем рождения!\n\nВ этот особенный день мы хотим подарить вам скидку 20% на любую покупку + бесплатную доставку. Это наш маленький подарок за то, что вы с нами!\n\nЖелаем счастья, здоровья и исполнения всех желаний. Ваш промокод: BIRTHDAY20\n\nС теплом,\nВаш любимый магазин`,
-      },
-      {
-        text: `{{Имя}}, с Днем рождения!\n\nСегодня ваш день, и мы приготовили для вас сюрприз: скидка 20% + доставка в подарок!\n\nВы давно присматривались к аксессуарам из новой коллекции? Самое время порадовать себя! Промокод BIRTHDAY20 уже активирован.\n\nОтличного праздника!`,
-      },
-    ];
-    
-    setLoyaltyResults(mockResults);
-    
-    const newHistoryItem: HistoryItem = {
-      id: Date.now().toString(),
-      module: "loyalty",
-      inputJson: JSON.stringify(data),
-      outputText: mockResults.map((r) => r.text).join("\n\n---\n\n"),
-      isFavorite: false,
-      createdAt: new Date(),
-    };
-    setHistoryItems((prev) => [newHistoryItem, ...prev]);
-    
-    setIsLoading(false);
+  const handleLoyaltySubmit = (data: LoyaltyFormData) => {
+    loyaltyMutation.mutate(data);
   };
 
   const handleToggleFavorite = (id: string) => {
-    setHistoryItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isFavorite: !item.isFavorite } : item
-      )
-    );
+    toggleFavoriteMutation.mutate(id);
   };
 
-  const renderResults = (results: GeneratedResult[], type: string) => {
+  const renderResults = (results: GeneratedResult[], isLoading: boolean) => {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center justify-center py-16">
@@ -158,6 +167,15 @@ export default function Workspace() {
       </div>
     );
   };
+
+  const historyItems = (historyData?.generations || []).map((gen) => ({
+    id: gen.id.toString(),
+    module: gen.module as "yadirect" | "email_social" | "loyalty",
+    inputJson: gen.inputJson,
+    outputText: gen.outputText,
+    isFavorite: gen.isFavorite,
+    createdAt: new Date(gen.createdAt),
+  }));
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -187,11 +205,11 @@ export default function Workspace() {
           <TabsContent value="yadirect" className="mt-0">
             <div className="grid lg:grid-cols-5 gap-6">
               <div className="lg:col-span-2">
-                <YaDirectForm onSubmit={handleYaDirectSubmit} isLoading={isLoading} />
+                <YaDirectForm onSubmit={handleYaDirectSubmit} isLoading={yaDirectMutation.isPending} />
               </div>
               <div className="lg:col-span-3">
                 <ScrollArea className="h-[calc(100vh-200px)]">
-                  {renderResults(yaDirectResults, "yadirect")}
+                  {renderResults(yaDirectResults, yaDirectMutation.isPending)}
                 </ScrollArea>
               </div>
             </div>
@@ -200,11 +218,11 @@ export default function Workspace() {
           <TabsContent value="email" className="mt-0">
             <div className="grid lg:grid-cols-5 gap-6">
               <div className="lg:col-span-2">
-                <EmailSocialForm onSubmit={handleEmailSubmit} isLoading={isLoading} />
+                <EmailSocialForm onSubmit={handleEmailSubmit} isLoading={emailMutation.isPending} />
               </div>
               <div className="lg:col-span-3">
                 <ScrollArea className="h-[calc(100vh-200px)]">
-                  {renderResults(emailResults, "email")}
+                  {renderResults(emailResults, emailMutation.isPending)}
                 </ScrollArea>
               </div>
             </div>
@@ -213,18 +231,23 @@ export default function Workspace() {
           <TabsContent value="loyalty" className="mt-0">
             <div className="grid lg:grid-cols-5 gap-6">
               <div className="lg:col-span-2">
-                <LoyaltyForm onSubmit={handleLoyaltySubmit} isLoading={isLoading} />
+                <LoyaltyForm onSubmit={handleLoyaltySubmit} isLoading={loyaltyMutation.isPending} />
               </div>
               <div className="lg:col-span-3">
                 <ScrollArea className="h-[calc(100vh-200px)]">
-                  {renderResults(loyaltyResults, "loyalty")}
+                  {renderResults(loyaltyResults, loyaltyMutation.isPending)}
                 </ScrollArea>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="history" className="mt-0">
-            {historyItems.length === 0 ? (
+            {isHistoryLoading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Загрузка истории...</p>
+              </div>
+            ) : historyItems.length === 0 ? (
               <EmptyState type="history" />
             ) : (
               <HistoryTable
