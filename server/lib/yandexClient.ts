@@ -210,7 +210,8 @@ export function parseEmailSocialResponse(text: string): Array<{ text: string; im
     const imageMatch = variant.match(/Идея для картинки:\s*(.+?)$/im);
     const mainText = variant.replace(/Идея для картинки:\s*.+$/im, "").trim();
 
-    if (mainText) {
+    // Skip empty variants or intro text (must have substantial content)
+    if (mainText && mainText.length > 20) {
       results.push({
         text: mainText,
         imageIdea: imageMatch ? imageMatch[1].trim() : "",
@@ -227,7 +228,8 @@ export function parseLoyaltyResponse(text: string): Array<{ text: string }> {
 
   for (const variant of variants) {
     const trimmed = variant.trim();
-    if (trimmed) {
+    // Skip empty variants or intro text (must have substantial content)
+    if (trimmed && trimmed.length > 20) {
       results.push({ text: trimmed });
     }
   }
