@@ -9,6 +9,7 @@ import EmailSocialForm, { EmailSocialFormData } from "@/components/EmailSocialFo
 import LoyaltyForm, { LoyaltyFormData } from "@/components/LoyaltyForm";
 import HistoryTable from "@/components/HistoryTable";
 import ResultCard from "@/components/ResultCard";
+import YaDirectResultCard from "@/components/YaDirectResultCard";
 import EmptyState from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,8 @@ interface HistoryResponse {
 export default function Workspace() {
   const [activeTab, setActiveTab] = useState("yadirect");
   const [yaDirectResults, setYaDirectResults] = useState<GeneratedResult[]>([]);
+  const [yaDirectKeywords, setYaDirectKeywords] = useState("");
+  const [yaDirectUSP, setYaDirectUSP] = useState("");
   const [emailResults, setEmailResults] = useState<GeneratedResult[]>([]);
   const [loyaltyResults, setLoyaltyResults] = useState<GeneratedResult[]>([]);
   const { toast } = useToast();
@@ -124,6 +127,8 @@ export default function Workspace() {
   });
 
   const handleYaDirectSubmit = (data: YaDirectFormData) => {
+    setYaDirectKeywords(data.keywords);
+    setYaDirectUSP(data.usp || "");
     yaDirectMutation.mutate(data);
   };
 
@@ -209,7 +214,27 @@ export default function Workspace() {
               </div>
               <div className="lg:col-span-3">
                 <ScrollArea className="h-[calc(100vh-200px)]">
-                  {renderResults(yaDirectResults, yaDirectMutation.isPending)}
+                  {yaDirectMutation.isPending ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                      <p className="text-muted-foreground">Генерируем варианты...</p>
+                    </div>
+                  ) : yaDirectResults.length === 0 ? (
+                    <EmptyState type="results" />
+                  ) : (
+                    <div className="space-y-4">
+                      {yaDirectResults.map((result, index) => (
+                        <YaDirectResultCard
+                          key={index}
+                          variantNumber={index + 1}
+                          title={result.title || ""}
+                          text={result.text}
+                          keywords={yaDirectKeywords}
+                          usp={yaDirectUSP}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </ScrollArea>
               </div>
             </div>
