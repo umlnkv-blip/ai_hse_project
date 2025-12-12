@@ -15,6 +15,11 @@ import {
   parseEmailSocialResponse,
   parseLoyaltyResponse,
 } from "./lib/yandexClient";
+import {
+  validateYaDirectAd,
+  buildRefinementPrompt,
+  parseRefinedAd,
+} from "./lib/yaDirectValidation";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,7 +38,7 @@ export async function registerRoutes(
 
       const prompt = buildYaDirectPrompt(parsed.data);
       const response = await generateTextYandex(prompt);
-      const results = parseYaDirectResponse(response);
+      let results = parseYaDirectResponse(response);
 
       if (results.length === 0) {
         const fallbackResults = [{
@@ -51,14 +56,69 @@ export async function registerRoutes(
         return res.json({ results: fallbackResults, raw: response });
       }
 
+      const MAX_REFINEMENT_ATTEMPTS = 5;
+      const refinedResults: Array<{ title: string; text: string }> = [];
+
+      for (const result of results) {
+        let currentTitle = result.title;
+        let currentText = result.text;
+        let attempts = 0;
+        let lastValidation = validateYaDirectAd(
+          currentTitle,
+          currentText,
+          parsed.data.keywords,
+          parsed.data.usp || ""
+        );
+
+        while (!lastValidation.isValid && attempts < MAX_REFINEMENT_ATTEMPTS) {
+          const allIssues = [...lastValidation.errors, ...lastValidation.warnings];
+          
+          const refinementPrompt = buildRefinementPrompt(
+            currentTitle,
+            currentText,
+            allIssues,
+            {
+              product: parsed.data.product,
+              keywords: parsed.data.keywords,
+              usp: parsed.data.usp,
+            }
+          );
+
+          try {
+            const refinedResponse = await generateTextYandex(refinementPrompt);
+            const refined = parseRefinedAd(refinedResponse);
+
+            if (refined) {
+              currentTitle = refined.title;
+              currentText = refined.text;
+              lastValidation = validateYaDirectAd(
+                currentTitle,
+                currentText,
+                parsed.data.keywords,
+                parsed.data.usp || ""
+              );
+            } else {
+              break;
+            }
+          } catch (e) {
+            console.error("Refinement attempt failed:", e);
+            break;
+          }
+
+          attempts++;
+        }
+
+        refinedResults.push({ title: currentTitle, text: currentText });
+      }
+
       await storage.createGeneration({
         module: "yadirect",
         inputJson: JSON.stringify(parsed.data),
-        outputText: results.map(r => `${r.title}\n${r.text}`).join("\n\n"),
+        outputText: refinedResults.map(r => `${r.title}\n${r.text}`).join("\n\n"),
         isFavorite: false,
       });
 
-      res.json({ results });
+      res.json({ results: refinedResults });
     } catch (error: any) {
       console.error("YaDirect generation error:", error);
       res.status(500).json({ 
