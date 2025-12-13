@@ -194,7 +194,7 @@ export async function registerRoutes(
 
       const prompt = buildLoyaltyPrompt(parsed.data);
       const response = await generateTextYandex(prompt);
-      const results = parseLoyaltyResponse(response);
+      const results = parseLoyaltyResponse(response, parsed.data.customerName);
 
       if (results.length === 0) {
         const fallbackResults = [{ text: response.trim() }];

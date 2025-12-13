@@ -186,14 +186,15 @@ ${data.purchaseHistory ? `История покупок/интересы: ${data
 ${data.campaignGoal ? `Цель кампании: ${data.campaignGoal}` : ""}
 
 Требования:
-- Используй плейсхолдер {{Имя}} для обращения к клиенту
+- Обращайся к клиенту по имени: ${data.customerName}
 - Текст должен быть персональным и теплым
 - Применяй принципы AIDA (внимание, интерес, желание, действие)
 - Сообщение должно подходить для email или мессенджеров
+- НЕ используй эмодзи
 
 Формат ответа:
 ВАРИАНТ N:
-[полный текст сообщения с плейсхолдером {{Имя}}]
+[полный текст сообщения]
 
 Создай 1-2 варианта.`;
 }
@@ -263,14 +264,20 @@ export function parseEmailSocialResponse(text: string): Array<{ text: string; im
   return results;
 }
 
-export function parseLoyaltyResponse(text: string): Array<{ text: string }> {
+export function parseLoyaltyResponse(text: string, customerName?: string): Array<{ text: string }> {
   const results: Array<{ text: string }> = [];
   const variants = text.split(/ВАРИАНТ\s*\d+:/i).filter(Boolean);
 
   for (const variant of variants) {
-    const trimmed = variant.trim();
+    let trimmed = variant.trim();
     // Skip empty variants or intro text (must have substantial content)
     if (trimmed && trimmed.length > 20) {
+      // Replace placeholder with actual name
+      if (customerName) {
+        trimmed = trimmed.replace(/\{\{Имя\}\}/gi, customerName);
+        trimmed = trimmed.replace(/\[Имя\]/gi, customerName);
+        trimmed = trimmed.replace(/Дорогая?\s+\{\{Имя\}\}/gi, `Дорогой(ая) ${customerName}`);
+      }
       results.push({ text: trimmed });
     }
   }
