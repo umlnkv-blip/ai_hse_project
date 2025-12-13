@@ -20,6 +20,7 @@ import {
   validateYaDirectAd,
   buildRefinementPrompt,
   parseRefinedAd,
+  truncateAdText,
 } from "./lib/yaDirectValidation";
 
 export async function registerRoutes(
@@ -98,8 +99,10 @@ export async function registerRoutes(
             const refined = parseRefinedAd(refinedResponse);
 
             if (refined) {
-              currentTitle = refined.title;
-              currentText = refined.text;
+              // Apply truncation to ensure limits
+              const truncated = truncateAdText(refined.title, refined.text);
+              currentTitle = truncated.title;
+              currentText = truncated.text;
               lastValidation = validateYaDirectAd(
                 currentTitle,
                 currentText,

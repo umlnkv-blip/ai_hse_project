@@ -201,3 +201,42 @@ export function parseRefinedAd(response: string): { title: string; text: string 
   }
   return null;
 }
+
+function truncateToLimit(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  let result = "";
+  
+  for (const sentence of sentences) {
+    if ((result + (result ? " " : "") + sentence).length <= maxLength) {
+      result += (result ? " " : "") + sentence;
+    } else {
+      break;
+    }
+  }
+  
+  if (!result) {
+    const words = text.split(/\s+/);
+    for (const word of words) {
+      if ((result + (result ? " " : "") + word).length <= maxLength) {
+        result += (result ? " " : "") + word;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  if (!result || result.length < 10) {
+    result = text.slice(0, maxLength - 3) + "...";
+  }
+  
+  return result;
+}
+
+export function truncateAdText(title: string, text: string): { title: string; text: string } {
+  return {
+    title: truncateToLimit(title, 56),
+    text: truncateToLimit(text, 81),
+  };
+}
