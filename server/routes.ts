@@ -66,7 +66,7 @@ export async function registerRoutes(
         return res.json({ results: fallbackResults, raw: response });
       }
 
-      const MAX_REFINEMENT_ATTEMPTS = 5;
+      const MAX_REFINEMENT_ATTEMPTS = 8;
       const refinedResults: Array<{ title: string; text: string }> = [];
 
       for (const result of results) {

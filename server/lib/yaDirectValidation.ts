@@ -163,30 +163,30 @@ export function buildRefinementPrompt(
   }
 ): string {
   const keywordList = originalData.keywords.split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
-  const firstKeyword = keywordList[0] || originalData.product;
+  const keywordsStr = keywordList.slice(0, 3).join(", ");
   
   const currentTitleLen = title.length;
   const currentTextLen = text.length;
   
-  return `СРОЧНО ИСПРАВЬ объявление Яндекс.Директ!
+  return `ИСПРАВЬ объявление Яндекс.Директ!
 
-ТЕКУЩЕЕ (С ОШИБКАМИ):
-Заголовок (${currentTitleLen} симв.): ${title}
-Текст (${currentTextLen} симв.): ${text}
+ТЕКУЩЕЕ:
+Заголовок: ${title}
+Текст: ${text}
 
-ОШИБКИ КОТОРЫЕ НУЖНО ИСПРАВИТЬ:
-${issues.map((issue, i) => `- ${issue}`).join("\n")}
+ПРОБЛЕМЫ:
+${issues.map(issue => `- ${issue}`).join("\n")}
 
-ТРЕБОВАНИЯ:
-1. Заголовок: МАКСИМУМ 56 символов (сейчас ${currentTitleLen})
-2. Текст: МАКСИМУМ 81 символ (сейчас ${currentTextLen}) - СОКРАТИ!
-3. Включи слово "${firstKeyword}"
-4. Добавь призыв: закажи/узнай/получи/звони
+ОБЯЗАТЕЛЬНО:
+1. Заголовок до 56 символов
+2. Текст до 81 символа
+3. ВКЛЮЧИ ОДНО ИЗ СЛОВ: ${keywordsStr}
+4. Добавь призыв: закажи/узнай/звони/запишись
 ${originalData.usp ? `5. Упомяни: ${originalData.usp}` : ""}
 
-ОТВЕТ (только это):
-Заголовок: [до 56 символов]
-Текст: [до 81 символа]`;
+ОТВЕТ:
+Заголовок: [текст с ключевым словом]
+Текст: [текст до 81 символа]`;
 }
 
 export function parseRefinedAd(response: string): { title: string; text: string } | null {
