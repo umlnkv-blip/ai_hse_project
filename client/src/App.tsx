@@ -6,12 +6,45 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/Landing";
 import Workspace from "@/pages/Workspace";
 import NotFound from "@/pages/not-found";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+
+function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      window.location.href = "/api/login";
+    }
+  }, [isLoading, isAuthenticated, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <Component />;
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/app" component={Workspace} />
+      <Route path="/app">
+        {() => <ProtectedRoute component={Workspace} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
