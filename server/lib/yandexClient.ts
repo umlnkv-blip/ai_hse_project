@@ -198,7 +198,27 @@ ${data.campaignGoal ? `Цель кампании: ${data.campaignGoal}` : ""}
 Создай 1-2 варианта.`;
 }
 
+const REFUSAL_PATTERNS = [
+  "я не могу",
+  "не могу обсуждать",
+  "не могу помочь",
+  "давайте поговорим о чём-нибудь",
+  "не в моих возможностях",
+  "к сожалению, я не",
+  "извините, но я не могу",
+];
+
+export function isRefusalResponse(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  return REFUSAL_PATTERNS.some(pattern => lowerText.includes(pattern));
+}
+
 export function parseYaDirectResponse(text: string): Array<{ title: string; text: string }> {
+  // Check for refusal first
+  if (isRefusalResponse(text)) {
+    return [];
+  }
+  
   const results: Array<{ title: string; text: string }> = [];
   const variants = text.split(/ВАРИАНТ\s*\d+:/i).filter(Boolean);
 
@@ -207,10 +227,16 @@ export function parseYaDirectResponse(text: string): Array<{ title: string; text
     const textMatch = variant.match(/Текст:\s*(.+?)(?:\n\n|ВАРИАНТ|$)/i);
 
     if (titleMatch && textMatch) {
-      results.push({
-        title: titleMatch[1].trim(),
-        text: textMatch[1].trim(),
-      });
+      const adTitle = titleMatch[1].trim();
+      const adText = textMatch[1].trim();
+      
+      // Skip if this variant contains refusal text
+      if (!isRefusalResponse(adTitle) && !isRefusalResponse(adText)) {
+        results.push({
+          title: adTitle,
+          text: adText,
+        });
+      }
     }
   }
 

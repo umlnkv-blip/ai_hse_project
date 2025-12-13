@@ -14,6 +14,7 @@ import {
   parseYaDirectResponse,
   parseEmailSocialResponse,
   parseLoyaltyResponse,
+  isRefusalResponse,
 } from "./lib/yandexClient";
 import {
   validateYaDirectAd,
@@ -41,6 +42,14 @@ export async function registerRoutes(
       let results = parseYaDirectResponse(response);
 
       if (results.length === 0) {
+        // Check if YandexGPT refused to generate
+        if (isRefusalResponse(response)) {
+          return res.status(400).json({ 
+            error: "Не удалось сгенерировать объявление",
+            details: "Попробуйте изменить описание продукта или ключевые слова и повторить генерацию."
+          });
+        }
+        
         const fallbackResults = [{
           title: "Результат генерации",
           text: response.trim()

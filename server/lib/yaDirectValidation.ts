@@ -17,6 +17,29 @@ function getWordStem(word: string): string {
   return stem;
 }
 
+function keywordMatches(keyword: string, text: string): boolean {
+  const lowerKw = keyword.toLowerCase();
+  const lowerText = text.toLowerCase();
+  
+  // Direct match
+  if (lowerText.includes(lowerKw)) return true;
+  
+  // Stem of keyword in text
+  const kwStem = getWordStem(lowerKw);
+  if (kwStem.length >= 3 && lowerText.includes(kwStem)) return true;
+  
+  // Check if any word in text starts with keyword stem (курс -> курсы, курсов, etc)
+  const textWords = lowerText.split(/\s+/);
+  for (const word of textWords) {
+    const cleanWord = word.replace(/[.,!?;:()""«»]/g, "");
+    if (cleanWord.startsWith(kwStem) || kwStem.startsWith(cleanWord.slice(0, 3))) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
@@ -93,14 +116,7 @@ export function validateYaDirectAd(
   }
 
   const keywordList = keywords.toLowerCase().split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
-  const hasKeywords = keywordList.some(kw => {
-    if (fullText.includes(kw)) return true;
-    const stem = getWordStem(kw);
-    if (stem.length >= 4) {
-      return fullText.includes(stem);
-    }
-    return false;
-  });
+  const hasKeywords = keywordList.some(kw => keywordMatches(kw, fullText));
   if (!hasKeywords && keywordList.length > 0) {
     warnings.push("Ключевые слова не найдены в тексте");
   }
