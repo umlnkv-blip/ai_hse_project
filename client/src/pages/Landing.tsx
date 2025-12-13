@@ -66,7 +66,7 @@ export default function Landing() {
                 Email и соцсети
               </h3>
               <p className="text-muted-foreground">
-                Готовьте тексты для email-рассылок, постов в Instagram, 
+                Готовьте тексты для email-рассылок, постов в Instagram (принадлежит Meta, деятельность организации запрещена на территории РФ), 
                 ВКонтакте и Telegram с идеями для визуального контента.
               </p>
             </Card>

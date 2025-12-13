@@ -84,8 +84,8 @@ export default function EmailSocialForm({ onSubmit, isLoading = false }: EmailSo
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="instagram_post">Пост в Instagram</SelectItem>
-              <SelectItem value="instagram_stories">Сторис Instagram</SelectItem>
+              <SelectItem value="instagram_post">Пост в Instagram (принадлежит Meta, деятельность организации запрещена на территории РФ)</SelectItem>
+              <SelectItem value="instagram_stories">Сторис Instagram (принадлежит Meta, деятельность организации запрещена на территории РФ)</SelectItem>
               <SelectItem value="vk">ВКонтакте</SelectItem>
               <SelectItem value="telegram">Telegram</SelectItem>
             </SelectContent>
