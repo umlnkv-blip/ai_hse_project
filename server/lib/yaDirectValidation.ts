@@ -1,3 +1,22 @@
+function getWordStem(word: string): string {
+  const suffixes = [
+    "ами", "ями", "ах", "ях", "ом", "ем", "ой", "ей", "ов", "ев", "ий", "ый", "ая", "яя", "ое", "ее",
+    "ию", "ью", "ию", "ие", "ье", "ия", "ья", "ую", "юю", "ого", "его", "ому", "ему",
+    "ать", "ять", "еть", "ить", "уть", "ти", "чь",
+    "ал", "ял", "ел", "ил", "ул", "ала", "яла", "ела", "ила",
+    "ок", "ек", "ик", "ка", "ки", "ку", "ке",
+    "ы", "и", "а", "я", "у", "ю", "е", "о"
+  ];
+  
+  let stem = word.toLowerCase();
+  for (const suffix of suffixes) {
+    if (stem.endsWith(suffix) && stem.length - suffix.length >= 3) {
+      return stem.slice(0, -suffix.length);
+    }
+  }
+  return stem;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
@@ -74,7 +93,14 @@ export function validateYaDirectAd(
   }
 
   const keywordList = keywords.toLowerCase().split(/[,;]+/).map(k => k.trim()).filter(Boolean);
-  const hasKeywords = keywordList.some(kw => fullText.includes(kw));
+  const hasKeywords = keywordList.some(kw => {
+    if (fullText.includes(kw)) return true;
+    const stem = getWordStem(kw);
+    if (stem.length >= 4) {
+      return fullText.includes(stem);
+    }
+    return false;
+  });
   if (!hasKeywords && keywordList.length > 0) {
     warnings.push("Ключевые слова не найдены в тексте");
   }
