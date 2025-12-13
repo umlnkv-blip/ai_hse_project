@@ -72,6 +72,25 @@ Preferred communication style: Simple, everyday language.
 
 **Database**: PostgreSQL accessed via Drizzle ORM
 
+### Authentication
+
+**Replit Auth Integration**: 
+- OpenID Connect authentication via Replit
+- Supports Google, GitHub, email/password login methods
+- Session management with PostgreSQL-backed session store
+- Key files:
+  - `server/replitAuth.ts` - Authentication middleware setup
+  - `client/src/hooks/useAuth.ts` - React hook for auth state
+  - `client/src/lib/authUtils.ts` - Auth utility functions
+
+**Auth Routes**:
+- `/api/login` - Initiates login flow
+- `/api/logout` - Logs out and redirects home
+- `/api/callback` - OAuth callback handler
+- `/api/auth/user` - Returns current authenticated user
+
+**User Isolation**: All generations are scoped to the authenticated user via `userId` column
+
 **Schema Design**:
 
 ```typescript
