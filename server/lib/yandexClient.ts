@@ -214,6 +214,41 @@ export function isRefusalResponse(text: string): boolean {
   return REFUSAL_PATTERNS.some(pattern => lowerText.includes(pattern));
 }
 
+function truncateToLimit(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  
+  // Try to cut at last sentence that fits
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  let result = "";
+  
+  for (const sentence of sentences) {
+    if ((result + (result ? " " : "") + sentence).length <= maxLength) {
+      result += (result ? " " : "") + sentence;
+    } else {
+      break;
+    }
+  }
+  
+  // If no sentence fits, cut at last word that fits
+  if (!result) {
+    const words = text.split(/\s+/);
+    for (const word of words) {
+      if ((result + (result ? " " : "") + word).length <= maxLength) {
+        result += (result ? " " : "") + word;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  // Last resort: hard cut
+  if (!result || result.length < 10) {
+    result = text.slice(0, maxLength - 3) + "...";
+  }
+  
+  return result;
+}
+
 export function parseYaDirectResponse(text: string): Array<{ title: string; text: string }> {
   // Check for refusal first
   if (isRefusalResponse(text)) {
@@ -228,11 +263,15 @@ export function parseYaDirectResponse(text: string): Array<{ title: string; text
     const textMatch = variant.match(/Текст:\s*(.+?)(?:\n\n|ВАРИАНТ|$)/i);
 
     if (titleMatch && textMatch) {
-      const adTitle = titleMatch[1].trim();
-      const adText = textMatch[1].trim();
+      let adTitle = titleMatch[1].trim();
+      let adText = textMatch[1].trim();
       
       // Skip if this variant contains refusal text
       if (!isRefusalResponse(adTitle) && !isRefusalResponse(adText)) {
+        // Enforce character limits
+        adTitle = truncateToLimit(adTitle, 56);
+        adText = truncateToLimit(adText, 81);
+        
         results.push({
           title: adTitle,
           text: adText,
