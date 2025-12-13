@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure**:
 - RESTful endpoints under `/api/*`
-- Three generation endpoints: `/api/generate/yadirect`, `/api/generate/email_social`, `/api/generate/loyalty`
+- Three generation endpoints: `/api/generate/yadirect`, `/api/generate/email-social`, `/api/generate/loyalty`
 - History management: `/api/history` for retrieving past generations
 - Favorite toggling and deletion endpoints for user-saved content
 
@@ -72,34 +72,9 @@ Preferred communication style: Simple, everyday language.
 
 **Database**: PostgreSQL accessed via Drizzle ORM
 
-### Authentication
-
-**Replit Auth Integration**: 
-- OpenID Connect authentication via Replit
-- Supports Google, GitHub, email/password login methods
-- Session management with PostgreSQL-backed session store
-- Key files:
-  - `server/replitAuth.ts` - Authentication middleware setup
-  - `client/src/hooks/useAuth.ts` - React hook for auth state
-  - `client/src/lib/authUtils.ts` - Auth utility functions
-
-**Auth Routes**:
-- `/api/login` - Initiates login flow
-- `/api/logout` - Logs out and redirects home
-- `/api/callback` - OAuth callback handler
-- `/api/auth/user` - Returns current authenticated user
-
-**User Isolation**: All generations are scoped to the authenticated user via `userId` column
-
 **Schema Design**:
 
 ```typescript
-users {
-  id: UUID (primary key)
-  username: text (unique)
-  password: text
-}
-
 generations {
   id: UUID (primary key)
   module: text ('yadirect' | 'email_social' | 'loyalty')
@@ -111,25 +86,15 @@ generations {
 ```
 
 **Rationale**: 
-- User table exists for potential future authentication (currently unused)
 - Generations table uses JSONB-stored input for flexible schema evolution
 - Module field enables filtering by generation type
 - Favorite system allows users to bookmark useful outputs
-- No user foreign key currently enforced (single-user mode)
 
 **ORM Choice**: Drizzle selected for:
 - Type-safe queries with TypeScript inference
 - Minimal overhead compared to traditional ORMs
 - Migration generation from schema definitions
 - PostgreSQL-specific feature support
-
-### Authentication and Authorization
-
-**Current State**: No authentication implemented
-
-**Architecture**: Basic user schema exists with username/password fields for future implementation
-
-**Consideration**: The codebase includes session infrastructure (connect-pg-simple) suggesting planned session-based authentication
 
 ### External Dependencies
 

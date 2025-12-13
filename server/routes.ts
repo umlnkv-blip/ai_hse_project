@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
   yaDirectRequestSchema, 
   emailSocialRequestSchema, 
@@ -27,22 +26,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  await setupAuth(app);
-
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.post("/api/generate/yadirect", async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-  
-  app.post("/api/generate/yadirect", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
       const parsed = yaDirectRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ 
@@ -66,7 +51,6 @@ export async function registerRoutes(
           inputJson: JSON.stringify(parsed.data),
           outputText: response,
           isFavorite: false,
-          userId,
         });
 
         return res.json({ results: fallbackResults, raw: response });
@@ -132,7 +116,6 @@ export async function registerRoutes(
         inputJson: JSON.stringify(parsed.data),
         outputText: refinedResults.map(r => `${r.title}\n${r.text}`).join("\n\n"),
         isFavorite: false,
-        userId,
       });
 
       res.json({ results: refinedResults });
@@ -144,9 +127,8 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate/email-social", isAuthenticated, async (req: any, res) => {
+  app.post("/api/generate/email-social", async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
       const parsed = emailSocialRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ 
@@ -170,7 +152,6 @@ export async function registerRoutes(
           inputJson: JSON.stringify(parsed.data),
           outputText: response,
           isFavorite: false,
-          userId,
         });
 
         return res.json({ results: fallbackResults, raw: response });
@@ -181,7 +162,6 @@ export async function registerRoutes(
         inputJson: JSON.stringify(parsed.data),
         outputText: results.map(r => `${r.text}\n\nИдея для картинки: ${r.imageIdea}`).join("\n\n---\n\n"),
         isFavorite: false,
-        userId,
       });
 
       res.json({ results });
@@ -193,9 +173,8 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate/loyalty", isAuthenticated, async (req: any, res) => {
+  app.post("/api/generate/loyalty", async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
       const parsed = loyaltyRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ 
@@ -216,7 +195,6 @@ export async function registerRoutes(
           inputJson: JSON.stringify(parsed.data),
           outputText: response,
           isFavorite: false,
-          userId,
         });
 
         return res.json({ results: fallbackResults, raw: response });
@@ -227,7 +205,6 @@ export async function registerRoutes(
         inputJson: JSON.stringify(parsed.data),
         outputText: results.map(r => r.text).join("\n\n---\n\n"),
         isFavorite: false,
-        userId,
       });
 
       res.json({ results });
@@ -239,13 +216,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/history", isAuthenticated, async (req: any, res) => {
+  app.get("/api/history", async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
       const { module, search, favoritesOnly } = req.query;
       
       const generations = await storage.getGenerations({
-        userId,
         module: module as string | undefined,
         search: search as string | undefined,
         favoritesOnly: favoritesOnly === "true",
@@ -258,11 +233,10 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/history/:id/favorite", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/history/:id/favorite", async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
       const { id } = req.params;
-      const updated = await storage.toggleFavorite(id, userId);
+      const updated = await storage.toggleFavorite(id);
       
       if (!updated) {
         return res.status(404).json({ error: "Запись не найдена" });
@@ -275,11 +249,10 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/history/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/history/:id", async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
       const { id } = req.params;
-      const deleted = await storage.deleteGeneration(id, userId);
+      const deleted = await storage.deleteGeneration(id);
       
       if (!deleted) {
         return res.status(404).json({ error: "Запись не найдена" });
