@@ -78,7 +78,7 @@ export function buildYaDirectPrompt(data: {
     emotional: "эмоциональной",
   };
 
-  const keywordList = data.keywords.split(/[,;]+/).map(k => k.trim()).filter(Boolean);
+  const keywordList = data.keywords.split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
   const firstKeyword = keywordList[0] || data.product;
 
   return `Ты опытный копирайтер Яндекс.Директ. Создай ${data.count} объявлений.

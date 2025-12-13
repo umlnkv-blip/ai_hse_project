@@ -92,7 +92,7 @@ export function validateYaDirectAd(
     }
   }
 
-  const keywordList = keywords.toLowerCase().split(/[,;]+/).map(k => k.trim()).filter(Boolean);
+  const keywordList = keywords.toLowerCase().split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
   const hasKeywords = keywordList.some(kw => {
     if (fullText.includes(kw)) return true;
     const stem = getWordStem(kw);
@@ -146,7 +146,7 @@ export function buildRefinementPrompt(
     usp?: string;
   }
 ): string {
-  const keywordList = originalData.keywords.split(/[,;]+/).map(k => k.trim()).filter(Boolean);
+  const keywordList = originalData.keywords.split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
   const firstKeyword = keywordList[0] || originalData.product;
   
   const currentTitleLen = title.length;
