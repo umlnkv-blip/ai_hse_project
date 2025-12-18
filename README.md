@@ -91,8 +91,8 @@ AI Service:
 
 YandexGPT via Yandex Cloud Foundation Models
 API endpoint: https://llm.api.cloud.yandex.net/foundationModels/v1
-Authentication: API key via YANDEX_CLOUD_API_KEY environment variable
-Model identifier requires: YANDEX_CLOUD_FOLDER environment variable
+Authentication: API 
+Model identifier requires: 
 Accessed through OpenAI SDK for convenient promise-based interface
 Database:
 
