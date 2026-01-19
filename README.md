@@ -1,4 +1,5 @@
 NeuroMarketer
+
 Overview
 NeuroMarketer is an AI-powered marketing assistant designed for Russian-speaking marketers and small businesses. The application generates effective marketing copy across three primary modules:
 
