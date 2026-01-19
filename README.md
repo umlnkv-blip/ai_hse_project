@@ -1,10 +1,13 @@
 NeuroMarketer
 
 Overview
+
 NeuroMarketer is an AI-powered marketing assistant designed for Russian-speaking marketers and small businesses. The application generates effective marketing copy across three primary modules:
 
 Yandex.Direct Ads - Creates advertising headlines and text for Russia's leading search advertising platform
+
 Email & Social Media - Generates content for email campaigns and social media posts (Instagram, VK, Telegram)
+
 Loyalty Programs - Creates personalized messages for customer retention (birthday greetings, reactivation campaigns, special offers)
 The application uses YandexGPT (via Yandex Cloud AI) for text generation and stores generation history in PostgreSQL for future reference and reuse.
 
